@@ -15,4 +15,4 @@ Turning any bidirectional video model into a real-time interactive world model w
 5. Real-time inference  
 
 Currently organizing training/inference framework, demos, and open-source docs.  
-Expected release in ~2 days 🚀
+Expected release (full-stack training/inference code, model ckpts og HY and Wan, and the action-conditioned data) in a week (no later than May 17th). 🚀
