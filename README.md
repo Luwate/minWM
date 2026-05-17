@@ -1,5 +1,7 @@
 # 🌍 minWM: The First Full-Stack Open-Source World Model Framework
 
+>  ***A full-stack framework and tutorial for newcomers, rather than a specific model.***
+
 **minWM** is our contribution to the world-model community: we open-source the full-stack pipeline (*data → training → inference*), package our project experience as Claude skills, and curate onboarding knowledge for newcomers to the field. We hope more researchers and developers join us in growing the community together.
 
 ## 🎬 Demo
