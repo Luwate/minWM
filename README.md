@@ -6,7 +6,7 @@
 
 ## 🎬 Demo
 
-<video src="assets/demo.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/74d1f157-66a7-4f88-9f57-d76382ef55c2
 
 ## 🔥 News
 
