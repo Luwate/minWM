@@ -73,8 +73,9 @@ The HunyuanVideo 1.5 and Wan 2.1 lines walk through the full 4-stage pipeline �
 
 | Backbone             | Architecture          | Params | Training       | Inference    |
 | -------------------- | --------------------- | ------ | -------------- | ------------ |
-| **HunyuanVideo 1.5** | MMDiT                 | 8 B    | ✅ all 4 stages | ✅ 4-step DMD |
 | **Wan 2.1**          | Cross-attention + DiT | 1.3 B  | ✅ all 4 stages | ✅ 4-step DMD |
+| **HunyuanVideo 1.5** | MMDiT                 | 8 B    | ✅ all 4 stages | ✅ 4-step DMD |
+
 
 
 Both lines share the same trainer / loss / dataset abstractions, so adding a third backbone is structurally a wrapper-and-config exercise.
@@ -137,6 +138,7 @@ All weights live under `./ckpts/` after download.
 
 | Checkpoint                                                                | Backbone | Stage                               | Use case                               | Download                                              |
 | ------------------------------------------------------------------------- | -------- | ----------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| `Wan21/Action2V/{bidirectional,ar_diffusion_tf,causal_ode,causal_cd,dmd}` | Wan 2.1  | Same 4 stages                       | Wan pipeline                           | [HF](https://huggingface.co/MIN-Lab/minWM)            |
 | `HunyuanVideo-1.5` (base)                                                 | HY 1.5   | —                                   | Required by both HY pipelines          | [HF](https://huggingface.co/tencent/HunyuanVideo-1.5) |
 | `Wan2.1-T2V-1.3B` (base)                                                  | Wan 2.1  | —                                   | Required by Wan pipeline               | [HF](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B)   |
 | `HY15/Action2V/bidirectional`                                             | HY 1.5   | Phase 1 SFT                         | Starting point for HY Action2V Phase 2 | [HF](https://huggingface.co/MIN-Lab/minWM)            |
@@ -145,7 +147,7 @@ All weights live under `./ckpts/` after download.
 | `HY15/Action2V/causal_cd`                                                 | HY 1.5   | Phase 2 Stage 2b (proposed in Causal Forcing++) | DMD initialization               | [HF](https://huggingface.co/MIN-Lab/minWM)            |
 | `HY15/Action2V/dmd`                                                       | HY 1.5   | Phase 2 Stage 3                     | **4-step real-time inference**         | [HF](https://huggingface.co/MIN-Lab/minWM)            |
 | `HY15/TI2V/{bidirectional,ar_diffusion_tf,causal_ode,causal_cd,dmd}`      | HY 1.5   | Same 4 stages, TI2V variant         | TI2V pipeline                          | [HF](https://huggingface.co/MIN-Lab/minWM)            |
-| `Wan21/Action2V/{bidirectional,ar_diffusion_tf,causal_ode,causal_cd,dmd}` | Wan 2.1  | Same 4 stages                       | Wan pipeline                           | [HF](https://huggingface.co/MIN-Lab/minWM)            |
+
 
 
 ## 🚀 Quick Start
@@ -155,6 +157,14 @@ All weights live under `./ckpts/` after download.
 ### 1. Download the demo checkpoints
 
 ```bash
+# Wan base (T2V-1.3B)
+hf download Wan-AI/Wan2.1-T2V-1.3B --local-dir ./ckpts/Wan2.1-T2V-1.3B 
+
+# Code hardcodes the load path; create a symlink.
+mkdir -p Wan21/wan_models
+ln -s "$(realpath ./ckpts/Wan2.1-T2V-1.3B)" Wan21/wan_models/Wan2.1-T2V-1.3B
+
+
 # HY base + text/vision encoders (required by HY pipelines)
 hf download tencent/HunyuanVideo-1.5 --local-dir ./ckpts/HunyuanVideo-1.5 \
     --include "vae/*"  "scheduler/*" "transformer/480p_i2v/*"
@@ -165,14 +175,12 @@ modelscope download --model AI-ModelScope/Glyph-SDXL-v2 \
 hf download black-forest-labs/FLUX.1-Redux-dev \
     --local-dir ./ckpts/HunyuanVideo-1.5/vision_encoder/siglip --token <your_hf_token>
 
-# Wan base (T2V-1.3B)
-hf download Wan-AI/Wan2.1-T2V-1.3B --local-dir ./ckpts/Wan2.1-T2V-1.3B 
 
-# Code hardcodes the load path; create a symlink.
-mkdir -p Wan21/wan_models
-ln -s "$(realpath ./ckpts/Wan2.1-T2V-1.3B)" Wan21/wan_models/Wan2.1-T2V-1.3B
+# 4-step DMD checkpoints
+## Wan Action2V (DMD, 4-step)
+hf download MIN-Lab/minWM --local-dir ./ckpts \
+    --include "Wan21/Action2V/dmd/*"
 
-# Three 4-step DMD checkpoints
 ## HY Action2V (DMD, 4-step, worldplay teacher) 
 hf download MIN-Lab/minWM --local-dir ./ckpts \
     --include "HY15/Action2V/dmd/*"
@@ -184,30 +192,27 @@ hf download MIN-Lab/minWM --local-dir ./ckpts \
 ## HY TI2V (DMD, 4-step)
 hf download MIN-Lab/minWM --local-dir ./ckpts \
     --include "HY15/TI2V/dmd/*"
-
-## Wan Action2V (DMD, 4-step)
-hf download MIN-Lab/minWM --local-dir ./ckpts \
-    --include "Wan21/Action2V/dmd/*"
 ```
 
 
 ### 2. Run the three demos
 
 ```bash
-# 2.1  HY Action2V (4-step DMD, camera control)
+# 2.1  Wan Action2V (4-step DMD, camera control)
+OUTPUT_FOLDER=./outputs/quickstart_wan_action2v \
+TRAJECTORY_PATH="Wan21/prompts/trajectories.txt" \
+    bash Wan21/scripts/inference/run_infer_causal_camera.sh
+
+# 2.2  HY Action2V (4-step DMD, camera control)
 TRANSFORMER_DIR=./ckpts/HY15/Action2V/dmd \
 OUTPUT_DIR=./outputs/quickstart_hy_action2v \
     bash HY15/scripts/inference/run_infer_causal_camera.sh
 
-# 2.2  HY TI2V (4-step DMD)
+# 2.3  HY TI2V (4-step DMD)
 TRANSFORMER_DIR=./ckpts/HY15/TI2V/dmd \
 OUTPUT_DIR=./outputs/quickstart_hy_ti2v \
     bash HY15/scripts/inference/run_infer_causal.sh
 
-# 2.3  Wan Action2V (4-step DMD, camera control)
-OUTPUT_FOLDER=./outputs/quickstart_wan_action2v \
-TRAJECTORY_PATH="Wan21/prompts/trajectories.txt" \
-    bash Wan21/scripts/inference/run_infer_causal_camera.sh
 ```
 
 > **Camera control.** For HY Action2V, trajectories are read per-sample from `assets/example.json` under the `"trajectory"` field. Format: `w/s/a/d` keys with `*N` repeats; comma-separated segments — e.g. `"a*4,w*8,s*7"`.
@@ -216,8 +221,8 @@ TRAJECTORY_PATH="Wan21/prompts/trajectories.txt" \
 
 Three model lines × two phases × four stages, each documented as **(1) Model download → (2) Data preparation → (3) Training script → (4) Validation**. Full reproduction guides are split by backbone:
 
-- 📘 [`training_hunyuan.md`](training_hunyuan.md) — **HY Action2V** + **HY TI2V** (HunyuanVideo 1.5 backbone)
 - 📗 [`training_wan.md`](training_wan.md) — **Wan Action2V** + **Wan T2V** (Wan 2.1 backbone)
+- 📘 [`training_hunyuan.md`](training_hunyuan.md) — **HY Action2V** + **HY TI2V** (HunyuanVideo 1.5 backbone)
 
 ## 📚 Citation
 
