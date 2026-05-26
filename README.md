@@ -152,7 +152,7 @@ All weights live under `./ckpts/` after download.
 
 ## 🚀 Quick Start
 
-> The fastest path: install → download three DMD checkpoints → run three demo commands. Full reproduction (all 4 training stages × 3 model lines) is in [§ Data & Training & Reproduction](#️-training--reproduction).
+> The fastest path: install → download three DMD checkpoints → run three demo commands. Full reproduction (all 4 training stages × 3 model lines) is in [§ Data & Training & Reproduction](#️-data--training--reproduction).
 
 ### 1. Download the demo checkpoints
 
