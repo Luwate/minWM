@@ -1,3 +1,4 @@
+import time
 from tqdm import tqdm
 from typing import List, Optional
 import torch
@@ -45,6 +46,9 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
         self.independent_first_frame = args.independent_first_frame
         self.local_attn_size = self.generator.model.local_attn_size
 
+        # Latency of producing the first chunk (set by inference()).
+        self.last_chunk0_latency = None
+
         print(f"KV inference with {self.num_frame_per_block} frames per block")
 
         if self.num_frame_per_block > 1:
@@ -78,6 +82,12 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
                 (batch_size, num_frames, num_channels, height, width). It is normalized to be in the range [0, 1].
         """
         batch_size, num_frames, num_channels, height, width = noise.shape
+
+        # Start chunk0 latency timer (matches HY15: from entry to end of first chunk).
+        torch.cuda.synchronize()
+        _chunk0_t0 = time.perf_counter()
+        self.last_chunk0_latency = None
+
         if not self.independent_first_frame or (self.independent_first_frame and initial_latent is not None):
             # If the first frame is independent and the first frame is provided, then the number of frames in the
             # noise should still be a multiple of num_frame_per_block
@@ -283,6 +293,11 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
 
             # Step 3.2: record the model's output
             output[:, cache_start_frame:cache_start_frame + current_num_frames] = latents
+
+            # Capture chunk0 latency: stop timer once the first chunk's denoised output is ready.
+            if self.last_chunk0_latency is None:
+                torch.cuda.synchronize()
+                self.last_chunk0_latency = time.perf_counter() - _chunk0_t0
 
             # Step 3.3: rerun with timestep zero to update KV cache using clean context
             self.generator(

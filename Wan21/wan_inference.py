@@ -1,6 +1,7 @@
 import argparse
 import torch
 import os
+import time
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from torchvision import transforms
@@ -185,6 +186,15 @@ def encode(self, videos: torch.Tensor) -> torch.Tensor:
     return output
 
 
+# Latency bookkeeping (rank 0 only; first prompt is recorded as None to skip warmup).
+chunk0_latencies = []
+# For causal pipelines we measure chunk0; for bidirectional we measure full inference.
+_is_causal_pipeline = isinstance(
+    pipeline, (CausalInferencePipeline, CausalDiffusionInferencePipeline)
+)
+_latency_label = "chunk0" if _is_causal_pipeline else "full inference"
+
+
 for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
     idx = batch_data['idx'].item()
 
@@ -250,6 +260,8 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         Ks = torch.from_numpy(Ks_np).unsqueeze(0).to(device=device, dtype=torch.bfloat16)
 
     # Generate frames
+    torch.cuda.synchronize()
+    _t0 = time.perf_counter()
     video, latents = pipeline.inference(
         noise=sampled_noise,
         text_prompts=prompts,
@@ -258,6 +270,20 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         viewmats=viewmats,
         Ks=Ks
     )
+    torch.cuda.synchronize()
+    _full_lat = time.perf_counter() - _t0
+
+    # Record latency on rank 0; first prompt is warmup → None.
+    if local_rank == 0:
+        if _is_causal_pipeline:
+            sample_lat = getattr(pipeline, "last_chunk0_latency", None)
+        else:
+            sample_lat = _full_lat
+        if len(chunk0_latencies) >= 1:
+            chunk0_latencies.append(sample_lat)
+        else:
+            chunk0_latencies.append(None)
+
     current_video = rearrange(video, 'b t c h w -> b t h w c').cpu()
     all_video.append(current_video)
     num_generated_frames += latents.shape[1]
@@ -275,5 +301,13 @@ for i, batch_data in tqdm(enumerate(dataloader), disable=(local_rank != 0)):
         write_video(output_path, video[0], fps=16)
     if dist.is_initialized():
         dist.barrier()
+
+
+# Aggregate latency on rank 0 (drop the first prompt's warmup).
+if local_rank == 0:
+    valid = [v for v in chunk0_latencies[1:] if v is not None]
+    if valid:
+        print(f"[timing] rank0 {_latency_label} latency (from 2nd prompt): "
+              f"avg={sum(valid)/len(valid):.3f}s over {len(valid)} samples")
 
        
