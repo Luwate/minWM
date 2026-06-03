@@ -1,4 +1,4 @@
-# 🌍 minWM: The First Full-Stack Open-Source World Model Framework
+# 🌍 minWM: Full-Stack Open-Source Video World Model Framework
 
 >  ***A full-stack framework and tutorial for newcomers, rather than a specific model.***
 
