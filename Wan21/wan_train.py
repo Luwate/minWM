@@ -1,7 +1,18 @@
 import argparse
 import os
+import torch.utils.data
+
+# Patch DataLoader to avoid CPU RAM OOM leaks/spikes caused by fork child workers
+_orig_dataloader_init = torch.utils.data.DataLoader.__init__
+def _patched_dataloader_init(self, *args, **kwargs):
+    if 'num_workers' in kwargs and kwargs['num_workers'] > 0:
+        kwargs['num_workers'] = 0
+    _orig_dataloader_init(self, *args, **kwargs)
+torch.utils.data.DataLoader.__init__ = _patched_dataloader_init
+
 from omegaconf import OmegaConf
 import wandb
+
 
 from wan_trainer import (
     DiffusionTrainer, BidirectionalDiffusionTrainer, ODETrainer,
