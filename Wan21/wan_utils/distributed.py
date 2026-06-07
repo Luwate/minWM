@@ -77,7 +77,13 @@ def fsdp_wrap(module, sharding_strategy="full", mixed_precision=False, wrap_stra
     else:
         raise ValueError(f"Invalid wrap strategy: {wrap_strategy}")
 
+    # Automatically offload text encoder to CPU since it is only used once per step
+    # and otherwise hogs precious GPU VRAM (saving ~9.5GB VRAM on a single GPU).
+    if module.__class__.__name__ == "WanTextEncoder":
+        cpu_offload = True
+
     os.environ["NCCL_CROSS_NIC"] = "1"
+
 
     sharding_strategy = {
         "full": ShardingStrategy.FULL_SHARD,
