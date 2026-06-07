@@ -40,6 +40,17 @@ def main():
     config.wandb_save_dir = args.wandb_save_dir
     config.disable_wandb = args.disable_wandb
 
+    # Auto-disable wandb if key is not configured or is placeholder
+    if not config.disable_wandb:
+        wandb_key = getattr(config, "wandb_key", "")
+        if not wandb_key or wandb_key == "<your_wandb_key>" or "your_wandb" in wandb_key:
+            print("=" * 60)
+            print("WARNING: W&B API key is not configured. Automatically disabling W&B logging.")
+            print("To enable W&B, edit your config yaml file or login via the CLI.")
+            print("=" * 60)
+            config.disable_wandb = True
+
+
     if config.trainer == "diffusion":
         trainer = DiffusionTrainer(config)
     elif config.trainer == "bidirectional_diffusion":

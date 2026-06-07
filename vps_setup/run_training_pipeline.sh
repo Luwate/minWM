@@ -14,6 +14,22 @@ fi
 NUM_GPUS_PER_NODE=${1:-8} # Overrides GPUs (default 8)
 STAGE=${2:-"0"}          # Overrides Stage (default 0: Bidirectional SFT)
 
+# Shift positional parameters so "$@" represents any extra arguments (e.g. --disable-wandb)
+if [ "$#" -ge 2 ]; then
+    shift 2
+elif [ "$#" -eq 1 ]; then
+    shift 1
+fi
+
+
+# Shift positional parameters so "$@" represents any extra arguments (e.g. --disable-wandb)
+if [ "$#" -ge 2 ]; then
+    shift 2
+elif [ "$#" -eq 1 ]; then
+    shift 1
+fi
+
+
 # Dynamically set sequence parallel size based on GPU count
 if [ "$NUM_GPUS_PER_NODE" -ge 8 ]; then
     SP_SIZE=4
@@ -39,7 +55,8 @@ case "$STAGE" in
             Wan21/wan_train.py \
             --config_path Wan21/configs/bidirectional_camera.yaml \
             --logdir logs/bidirectional_camera \
-            --sp_size "$SP_SIZE"
+            --sp_size "$SP_SIZE" \
+            "$@"
         ;;
     1)
         echo "--> Running Phase 2 Stage 1: Teacher Forcing AR Diffusion"
@@ -54,7 +71,8 @@ case "$STAGE" in
             --config_path Wan21/configs/ar_camera_tf.yaml \
             --logdir logs/ar_camera_tf \
             --sp_size "$SP_SIZE" \
-            --tf
+            --tf \
+            "$@"
         ;;
     2a)
         echo "--> Running Phase 2 Stage 2a: Causal ODE Distillation"
@@ -68,7 +86,8 @@ case "$STAGE" in
             Wan21/wan_train.py \
             --config_path Wan21/configs/causal_ode_camera.yaml \
             --logdir logs/causal_ode_camera \
-            --sp_size "$SP_SIZE"
+            --sp_size "$SP_SIZE" \
+            "$@"
         ;;
     2b)
         echo "--> Running Phase 2 Stage 2b: Causal Consistency Distillation (CD)"
@@ -82,7 +101,8 @@ case "$STAGE" in
             Wan21/wan_train.py \
             --config_path Wan21/configs/causal_cd_camera.yaml \
             --logdir logs/causal_cd_camera \
-            --sp_size "$SP_SIZE"
+            --sp_size "$SP_SIZE" \
+            "$@"
         ;;
     3)
         echo "--> Running Phase 2 Stage 3: Asymmetric DMD with Self Rollout"
@@ -96,7 +116,8 @@ case "$STAGE" in
             Wan21/wan_train.py \
             --config_path Wan21/configs/causal_forcing_dmd_camera.yaml \
             --logdir logs/causal_dmd_camera \
-            --sp_size "$SP_SIZE"
+            --sp_size "$SP_SIZE" \
+            "$@"
         ;;
     *)
         echo "Invalid stage specified. Available stages: 0, 1, 2a, 2b, 3"
