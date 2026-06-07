@@ -32,16 +32,25 @@ class WanTextEncoder(torch.nn.Module):
 
     @property
     def device(self):
-        # Assume we are always on GPU
-        return torch.cuda.current_device()
+        try:
+            return next(self.text_encoder.parameters()).device
+        except StopIteration:
+            return torch.device('cpu')
 
     def forward(self, text_prompts: List[str]) -> dict:
         ids, mask = self.tokenizer(
             text_prompts, return_mask=True, add_special_tokens=True)
-        ids = ids.to(self.device)
-        mask = mask.to(self.device)
+        
+        # Run T5 on its current device (CPU)
+        device = self.device
+        ids = ids.to(device)
+        mask = mask.to(device)
         seq_lens = mask.gt(0).sum(dim=1).long()
         context = self.text_encoder(ids, mask)
+
+        # Move the output embeddings to GPU for the rest of the model
+        cuda_device = torch.device(f'cuda:{torch.cuda.current_device()}')
+        context = context.to(cuda_device)
 
         for u, v in zip(context, seq_lens):
             u[v:] = 0.0  # set padding to 0.0
@@ -49,6 +58,7 @@ class WanTextEncoder(torch.nn.Module):
         return {
             "prompt_embeds": context
         }
+
 
 
 class WanVAEWrapper(torch.nn.Module):
