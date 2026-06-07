@@ -11,7 +11,7 @@ if command -v conda &> /dev/null; then
 fi
 
 # Optimize PyTorch memory allocator to avoid VRAM fragmentation
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 # Configuration
 NUM_GPUS_PER_NODE=${1:-8} # Overrides GPUs (default 8)
