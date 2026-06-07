@@ -26,8 +26,8 @@ image_or_video_shape:
 - 1
 - 20
 - 16
-- 60
-- 104
+- 30
+- 52
 trainer: camera_bidirectional_diffusion
 gradient_checkpointing: true
 num_frame_per_block: 4

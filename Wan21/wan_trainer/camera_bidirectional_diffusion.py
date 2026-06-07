@@ -12,7 +12,7 @@ import gc
 import logging
 
 from wan_utils.dataset import cycle, CameraLatentLMDBDataset
-from wan_utils.misc import set_seed
+from wan_utils.misc import set_seed, crop_batch
 import torch.distributed as dist
 from omegaconf import OmegaConf
 import torch
@@ -152,6 +152,7 @@ class Trainer(_Base):
 
     def train_one_step(self, batch):
         self.log_iters = 1
+        batch = crop_batch(batch, self.config.image_or_video_shape)
 
         if self.step % 20 == 0:
             torch.cuda.empty_cache()
